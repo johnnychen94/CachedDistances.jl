@@ -1,6 +1,6 @@
-using CachedDistances
+using LazyDistances
 using Test
 
-@testset "CachedDistances.jl" begin
+@testset "LazyDistances.jl" begin
     # Write your tests here.
 end
