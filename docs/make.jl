@@ -18,6 +18,7 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         examples,
+        "Function References" => "references.md"
     ],
 )
 

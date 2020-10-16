@@ -22,7 +22,7 @@ julia> using LazyDistances, Distances
 julia> A, B = rand(1:5, 6), rand(1:5, 4);
 
 julia> dist = PairwiseDistance(Euclidean(), A, B)
-6×4 PairwiseDistance{Float64, 2, Euclidean, LazyDistances.CachedViews.NullCacheArray{Float64, 2, Tuple{Base.OneTo{$(Int)}}, Tuple{Base.OneTo{$(Int)}}}, $(Vector{Int}), $(Vector{Int})}:
+6×4 PairwiseDistance{Float64, 2}:
  1.0  1.0  2.0  2.0
  4.0  4.0  1.0  1.0
  2.0  2.0  1.0  1.0

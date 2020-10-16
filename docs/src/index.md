@@ -4,9 +4,7 @@ CurrentModule = LazyDistances
 
 # LazyDistances
 
-```@index
-```
+`LazyDistances` is provides an array abstraction on lazily operates on the data with given distances.
 
-```@autodocs
-Modules = [LazyDistances]
+```@index
 ```
