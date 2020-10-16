@@ -1,3 +1,7 @@
 [deps]
-CachedDistances = "62e00516-fc32-4340-9c6d-efb7813ad70c"
+DemoCards = "311a05b2-6137-4a5a-b473-18580a3d38b5"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+LazyDistances = "62e00516-fc32-4340-9c6d-efb7813ad70c"
+TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"

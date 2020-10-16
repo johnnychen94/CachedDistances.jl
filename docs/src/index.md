@@ -1,12 +1,12 @@
 ```@meta
-CurrentModule = CachedDistances
+CurrentModule = LazyDistances
 ```
 
-# CachedDistances
+# LazyDistances
 
 ```@index
 ```
 
 ```@autodocs
-Modules = [CachedDistances]
+Modules = [LazyDistances]
 ```

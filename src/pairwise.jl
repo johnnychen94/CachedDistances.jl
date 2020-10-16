@@ -16,7 +16,7 @@ The default strategy is `NullCache()`, which means no cache is enabled.
 
 # Examples
 
-```jldoctest setup=(:(using Random; Random.seed!(0)))
+```jldoctest; setup=:(using Random; Random.seed!(0))
 julia> using LazyDistances, Distances
 
 julia> A, B = rand(1:5, 6), rand(1:5, 4);
