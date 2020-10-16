@@ -152,7 +152,7 @@ patched_mean_fast(img, rₚ) == patched_mean(img, rₚ)
 # things lazy.
 
 # More generally speaking, pre-calculation is just a cache. `PairwiseDistance` supports a so-called
-# [`LocalWindow`](@ref) cache which stores the results in neighborhood `(p, q-r:q+r)` for each pixel
+# [`LocalWindowCache`](@ref) cache which stores the results in neighborhood `(p, q-r:q+r)` for each pixel
 # pair `(p, q)`.
 
 eval_op(x, y) = abs2(x - y)
