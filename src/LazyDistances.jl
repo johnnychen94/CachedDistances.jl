@@ -3,9 +3,11 @@ module LazyDistances
 using Reexport
 using Distances
 
+include("utilities.jl")
 include("CachedViews/CachedViews.jl")
 @reexport using .CachedViews
-using .CachedViews: CachedView, AbstractCacheStrategy, NullCacheArray, LocalWindow, is_cached, make_cache, cache_index
+using .CachedViews: AbstractCacheStrategy, make_cache
+using .CachedViews: CachedView, NullCacheArray, LocalWindowCacheArray
 
 export PairwiseDistance
 
