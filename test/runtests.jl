@@ -1,6 +1,6 @@
-using LazyDistances
 using Test
+using LazyDistances, Distances
 
 @testset "LazyDistances.jl" begin
-    # Write your tests here.
+    include("pairwise.jl")
 end

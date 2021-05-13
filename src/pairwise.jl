@@ -49,7 +49,7 @@ end
 
 function PairwiseDistance(eval_op, A::AbstractArray, B::AbstractArray, cache_strategy::AbstractCacheStrategy=NullCache())
     PairwiseDistance(eval_op, A, B, cache_strategy) do p, q
-        A[p...], B[q...]
+        @views A[p...], B[q...]
     end
 end
 
@@ -66,7 +66,7 @@ function PairwiseDistance{T}(eval_op,
         B::AbstractArray,
         cache_strategy::AbstractCacheStrategy=NullCache()) where T
     PairwiseDistance{T}(eval_op, A, B, cache_strategy) do p, q
-        A[p...], B[q...]
+        @views A[p...], B[q...]
     end
 end
 
@@ -81,10 +81,10 @@ Base.@propagate_inbounds function Base.getindex(dist::PairwiseDistance{T, N}, I:
     if is_cached(dist.cache, I...)
         rst = @inbounds getindex(dist.cache, I...)
         if ismissing(rst)
-            rst = _evaluate_getindex(dist, I...)::T
+            rst = convert(T, _evaluate_getindex(dist, I...))
             @inbounds dist.cache[I...] = rst
         end
-        return rst::T
+        return convert(T, rst)
     else
         return _evaluate_getindex(dist, I...)
     end
@@ -92,13 +92,13 @@ end
 
 Base.@propagate_inbounds function Base.getindex(
         dist::PairwiseDistance{T, N, NA, M, F, CA},
-        I::Vararg{Int, N}) where {T, N, NA, M, F, CA<:NullCacheArray}
+        I::Vararg{Int, N})::T where {T, N, NA, M, F, CA<:NullCacheArray}
     _evaluate_getindex(dist, I...)
 end
 
 @inline function _evaluate_getindex(dist::PairwiseDistance{T, N, NA}, I::Vararg{Int, N}) where {T, N, NA}
     p_val, q_val = dist.map_op(I[1:NA], I[NA+1:end])
-    dist.eval_op(p_val, q_val)::T
+    convert(T, dist.eval_op(p_val, q_val))
 end
 
 # To remove unnecessary information and get a clean view

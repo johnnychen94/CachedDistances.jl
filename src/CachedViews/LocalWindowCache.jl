@@ -30,7 +30,7 @@ Base.size(A::LocalWindow) = map(length, axes(A))
 
 @inline function cache_index(::LocalWindow{T, N, NA}, I::Vararg{Int, N}) where {T, N, NA}
     i, j = I[1:NA], I[NA+1:end]
-    i, I[NA+1:end] .- i
+    return i, j .- i
 end
 
 @inline function is_cached(A::LocalWindow{T, N}, I::Vararg{Int, N}) where {T, N}
@@ -51,9 +51,9 @@ Base.@propagate_inbounds function Base.getindex(A::LocalWindow{T, N}, I::Vararg{
 end
 
 Base.@propagate_inbounds function Base.setindex!(A::LocalWindow{T, N}, v, I::Vararg{Int, N}) where {T, N}
-    i, o = cache_index(A, I...)
     @boundscheck checkcache(A, I...)
 
+    i, o = cache_index(A, I...)
     A.cache[i..., o...] = v
     return A
 end
