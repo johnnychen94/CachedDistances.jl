@@ -39,7 +39,7 @@ pointwise_dist = PairwiseDistance(eval_op, img, img); # 1.982 ns (0 allocations:
 # pointwise_dist[I, J] is defined as f(img[I], img[J])
 pq1 = pointwise_dist[CartesianIndex(1, 1), CartesianIndex(2, 2)]
 pq2 = eval_op(img[CartesianIndex(1, 1)], img[CartesianIndex(2, 2)])
-pq1 == pq2</code></pre><p>Generating this array does not doing any actual computation; the computation does not happen until you ask for the data. We can also build a patchwise distance with this.</p><pre><code class="language-julia">R = CartesianIndices(img)
+pq1 == pq2</code></pre><p>Generating this array does not doing any actual computation; the computation does not happen until you ask for the data. We can also build a patchwise distance with this.</p><pre><code class="language-">R = CartesianIndices(img)
 valid_R = first(R)+rₚ:last(R)-rₚ
 
 # For simplicity, we didn&#39;t deal with boundary condition here, so it will error
@@ -55,7 +55,7 @@ end; # 4.903 ns (0 allocations: 0 bytes)
 p = CartesianIndex(4, 4)
 q = CartesianIndex(5, 5)
 # @btime getindex($patchwise_dist, $p, $q) # 54.374 ns (0 allocations: 0 bytes)
-patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])</code></pre><pre class="documenter-example-output">true</pre><p>This way we have generated the patchwise distances, although the actual computation doesn&#39;t happen until we need it.</p><pre><code class="language-julia">function patched_mean_fast(img, rₚ; num_patches=10)
+patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])</code></pre><p>This way we have generated the patchwise distances, although the actual computation doesn&#39;t happen until we need it.</p><pre><code class="language-">function patched_mean_fast(img, rₚ; num_patches=10)
     out = fill(zero(eltype(img)), axes(img))
 
     patchwise_dist = PairwiseDistance(SqEuclidean(), img, img) do p, q
@@ -77,7 +77,7 @@ end
 #  657.075 ms (26913 allocations: 131.63 MiB)
 # @btime patched_mean($img, rₚ);
 #  797.023 ms (23549 allocations: 130.86 MiB)
-patched_mean_fast(img, rₚ) == patched_mean(img, rₚ)</code></pre><pre class="documenter-example-output">true</pre><p>Great! We haven&#39;t incoporate the pre-calculation trick yet, we still get a bit faster by making things lazy.</p><p>More generally speaking, pre-calculation is just a cache. <code>PairwiseDistance</code> supports a so-called <a href="examples/image processing/@ref"><code>LocalWindowCache</code></a> cache which stores the results in neighborhood <code>(p, q-r:q+r)</code> for each pixel pair <code>(p, q)</code>.</p><pre><code class="language-">eval_op(x, y) = abs2(x - y)
+patched_mean_fast(img, rₚ) == patched_mean(img, rₚ)</code></pre><p>Great! We haven&#39;t incoporate the pre-calculation trick yet, we still get a bit faster by making things lazy.</p><p>More generally speaking, pre-calculation is just a cache. <code>PairwiseDistance</code> supports a so-called <a href="examples/image processing/@ref"><code>LocalWindowCache</code></a> cache which stores the results in neighborhood <code>(p, q-r:q+r)</code> for each pixel pair <code>(p, q)</code>.</p><pre><code class="language-">eval_op(x, y) = abs2(x - y)
 pointwise_dist = PairwiseDistance(eval_op, img, img, LocalWindowCache((7, 7))) # 32.575 μs (3 allocations: 980.12 KiB)
 
 pq1 = pointwise_dist[CartesianIndex(1, 1), CartesianIndex(2, 2)]
@@ -95,4 +95,4 @@ end;
 
 # TODO: unfortunately, this is currently slower than the non-cache version: 10x slower :cry:
 # @btime getindex($patchwise_dist, $p, $q) # 526.684 ns (3 allocations: 448 bytes)
-patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/johnnychen94/DemoCards.jl">DemoCards.jl</a> and <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../">« Home</a><a class="docs-footer-nextpage" href="../../statistics/distances/">Row/Column-wise Distances »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 13 May 2021 11:23">Thursday 13 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/johnnychen94/DemoCards.jl">DemoCards.jl</a> and <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../">« Home</a><a class="docs-footer-nextpage" href="../../statistics/distances/">Row/Column-wise Distances »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 13 May 2021 18:58">Thursday 13 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
