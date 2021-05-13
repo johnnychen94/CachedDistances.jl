@@ -1,11 +1,14 @@
 struct NullCache <:AbstractCacheStrategy end
-struct NullCacheArray{T, N, IA, IB} <: CachedView{T, N}
-    axesA::IA
-    axesB::IB
+
+struct NullCacheArray{T, N, AT} <: CachedView{T, N}
+    axes::AT
 end
-make_cache(T, S::NullCache, axesA, axesB, args...) = NullCacheArray{T, length(axesA)+length(axesB), typeof(axesA), typeof(axesB)}(axesA, axesB)
+function make_cache(T, ::NullCache, axesA, axesB, args...)
+    axes = (axesA..., axesB...)
+    NullCacheArray{T, length(axes), typeof(axes)}(axes)
+end
 is_cached(::NullCacheArray, ::Int...) = false
 getindex(::NullCacheArray{T, N}, ::Vararg{Int, N}) where {T, N} = missing
 setindex!(::NullCacheArray{T, N}, v, ::Vararg{Int, N}) where {T, N} = v
-Base.axes(A::NullCacheArray) = (A.axesA..., A.axesB...)
-Base.size(A::NullCacheArray) = map(length, axes(A))
+Base.axes(C::NullCacheArray) = C.axes
+Base.size(C::NullCacheArray) = map(length, axes(C))
