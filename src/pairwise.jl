@@ -62,7 +62,7 @@ julia> dist = PairwiseDistance(Euclidean(), A, B, LocalWindowCache((5, )))
  5.0  4.0  3.0  2.0
 ```
 """
-struct PairwiseDistance{T, N, NA, M, G, F, AT, BT, CA<:CachedView} <: AbstractArray{T, N}
+struct PairwiseDistance{T, N, NA, CA<:CachedView, M, G, F, AT, BT} <: AbstractArray{T, N}
     index_map::M
     getindex_op::G
     f::F
@@ -75,7 +75,7 @@ struct PairwiseDistance{T, N, NA, M, G, F, AT, BT, CA<:CachedView} <: AbstractAr
             cache_strategy::AbstractCacheStrategy=NullCache()) where {T,NA,M,G,F}
 
         cache = make_cache(T, cache_strategy, axes(A), axes(B))
-        new{T, 2NA, NA,M, G, F, typeof(A), typeof(B), typeof(cache)}(
+        new{T, 2NA, NA, typeof(cache), M, G, F, typeof(A), typeof(B)}(
             index_map, getindex_op, f, A, B, cache
         )
     end
@@ -126,33 +126,39 @@ end
 Base.axes(dist::PairwiseDistance) = axes(dist.cache)
 Base.size(dist::PairwiseDistance) = map(length, axes(dist))
 
-Base.@propagate_inbounds function Base.getindex(dist::PairwiseDistance{T, N}, I::Vararg{Int, N})::T where {T, N}
-    @boundscheck checkbounds(dist, I...)
+Base.@propagate_inbounds function Base.getindex(dist::PairwiseDistance{T, N, NA}, I::Vararg{Int, N}) where {T, N, NA}
+    p, q = Base.IteratorsMD.split(I, Val(NA))
+    _getindex(dist, CartesianIndex(p), CartesianIndex(q))
+end
 
-    # TODO: Currently, each getindex call has about 16ns overhead, which is quite large and even
-    # slows down the performance.
-    if is_cached(dist.cache, I...)
-        rst = @inbounds getindex(dist.cache, I...)
+Base.@propagate_inbounds function _getindex(
+        dist::PairwiseDistance{T, N, NA, CA},
+        p::CartesianIndex{NA}, q::CartesianIndex{NA}) where {T, N, NA, CA<:NullCacheArray}
+    _evaluate_getindex(dist, p, q)
+end
+
+Base.@propagate_inbounds function _getindex(
+        dist::PairwiseDistance{T, N, NA, CA},
+        p::CartesianIndex{NA}, q::CartesianIndex{NA})::T where {T, N, NA, CA<:LocalWindowCacheArray}
+    o = q - p
+    I = CartesianIndex(p.I..., o.I...)
+
+    # Cache might be smaller than the actual array size
+    if _in(I, CartesianIndices(dist.cache.cache))
+        rst = @inbounds dist.cache.cache[I]
         if ismissing(rst)
-            rst = convert(T, _evaluate_getindex(dist, I...))
-            @inbounds dist.cache[I...] = rst
+            rst = _evaluate_getindex(dist, p, q)
+            @inbounds dist.cache.cache[I] = rst
         end
-        return convert(T, rst)
+        return rst
     else
-        return _evaluate_getindex(dist, I...)
+        return _evaluate_getindex(dist, p, q)
     end
 end
 
-Base.@propagate_inbounds function Base.getindex(
-        dist::PairwiseDistance{T, N, NA, M, F, CA},
-        I::Vararg{Int, N})::T where {T, N, NA, M, F, CA<:NullCacheArray}
-    _evaluate_getindex(dist, I...)
-end
-
-Base.@propagate_inbounds function _evaluate_getindex(d::PairwiseDistance{T, N, NA}, I::Vararg{Int, N}) where {T, N, NA}
-    i, j = I[1:NA], I[NA+1:end]
-    p = d.getindex_op(d.A, _to_indices(d.index_map(i)))
-    q = d.getindex_op(d.B, _to_indices(d.index_map(j)))
+Base.@propagate_inbounds function _evaluate_getindex(d::PairwiseDistance{T, N, NA}, p::CartesianIndex{NA}, q::CartesianIndex{NA}) where {T, N, NA}
+    p = d.getindex_op(d.A, _to_indices(d.index_map(p)))
+    q = d.getindex_op(d.B, _to_indices(d.index_map(q)))
     convert(T, d.f(p, q))
 end
 

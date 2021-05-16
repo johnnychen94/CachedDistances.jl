@@ -4,6 +4,9 @@
 # date: 2020-10-16
 # ---
 
+# !!! warning
+#     This demo is currently broken.
+
 # This example shows how `LazyDistances.PairwiseDistance` can be used to get a better
 # `Distances.pairwise` performance.
 
