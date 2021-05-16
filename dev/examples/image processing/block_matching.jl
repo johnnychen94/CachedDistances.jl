@@ -40,7 +40,8 @@ function patched_mean(img, rₚ; num_patches=10)
     out
 end
 
-patched_mean(img, rₚ) # 794.575 ms (23549 allocations: 130.86 MiB)
+# @btime patched_mean($img, $rₚ) # 799.883 ms (23549 allocations: 130.86 MiB)
+patched_mean(img, rₚ)
 
 eval_op(x, y) = abs2(x - y)
 pointwise_dist = PairwiseDistance(eval_op, img, img); # 1.982 ns (0 allocations: 0 bytes)
@@ -56,24 +57,21 @@ valid_R = first(R)+rₚ:last(R)-rₚ
 # For simplicity, we didn't deal with boundary condition here, so it will error
 # when we index with `patchwise_dist[1, 1, 1, 1]`.
 patchwise_dist = let rₚ = rₚ, img = img
-        PairwiseDistance(SqEuclidean(), img, img) do p, q
-        # here we specify how patches are generated from given pixel p and q
-        p, q = CartesianIndex(p), CartesianIndex(q)
-        @views img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ]
+    PairwiseDistance(SqEuclidean(), img, img) do i
+        i-rₚ:i+rₚ
     end
 end; # 4.903 ns (0 allocations: 0 bytes)
 
 p = CartesianIndex(4, 4)
 q = CartesianIndex(5, 5)
-# @btime getindex($patchwise_dist, $p, $q) # 54.374 ns (0 allocations: 0 bytes)
+# @btime getindex($patchwise_dist, $p, $q) # 53.874 ns (0 allocations: 0 bytes)
 patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])
 
-function patched_mean_fast(img, rₚ; num_patches=10)
+function patched_mean_lazy(img, rₚ; num_patches=10)
     out = fill(zero(eltype(img)), axes(img))
 
-    patchwise_dist = PairwiseDistance(SqEuclidean(), img, img) do p, q
-        p, q = CartesianIndex(p), CartesianIndex(q)
-        @views img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ]
+    patchwise_dist = PairwiseDistance(SqEuclidean(), img, img) do i
+        i-rₚ:i+rₚ
     end
 
     R = CartesianIndices(img)
@@ -86,33 +84,57 @@ function patched_mean_fast(img, rₚ; num_patches=10)
     out
 end
 
-# @btime patched_mean_fast($img, rₚ);
-#  657.075 ms (26913 allocations: 131.63 MiB)
-# @btime patched_mean($img, rₚ);
-#  797.023 ms (23549 allocations: 130.86 MiB)
-patched_mean_fast(img, rₚ) == patched_mean(img, rₚ)
+# @btime patched_mean_lazy($img, $rₚ);
+#  532.812 ms (26916 allocations: 131.63 MiB)
+# @btime patched_mean($img, $rₚ);
+#  824.653 ms (23549 allocations: 130.86 MiB)
+patched_mean_lazy(img, rₚ) == patched_mean(img, rₚ)
 
 eval_op(x, y) = abs2(x - y)
-pointwise_dist = PairwiseDistance(eval_op, img, img, LocalWindowCache((7, 7))) # 32.575 μs (3 allocations: 980.12 KiB)
+pointwise_dist = PairwiseDistance(eval_op, img, img, LocalWindowCache((7, 7))); # 32.575 μs (3 allocations: 980.12 KiB)
 
 pq1 = pointwise_dist[CartesianIndex(1, 1), CartesianIndex(2, 2)]
 pq2 = eval_op(img[CartesianIndex(1, 1)], img[CartesianIndex(2, 2)])
 pq1 == pq2
 
 patchwise_dist = let img=img, rₚ=rₚ
-        eval_op(x, y) = abs2(x - y)
-        pointwise_dist = PairwiseDistance(eval_op, img, img, LocalWindowCache((7, 7)))
-
-        patch_eval_op(patch_p, patch_q) = mapreduce((p, q)->pointwise_dist[p, q], +, patch_p, patch_q)
-        PairwiseDistance{Float32}(patch_eval_op, img, img) do p, q
-        p, q = CartesianIndex(p), CartesianIndex(q)
-        p-rₚ:p+rₚ, q-rₚ:q+rₚ
-    end
+    PairwiseDistance(SqEuclidean(), img, img, LocalWindowCache(size(img))) do i
+        i-rₚ:i+rₚ
+    end;
 end;
 
-# TODO: unfortunately, this is currently slower than the non-cache version: 10x slower :cry:
-# @btime getindex($patchwise_dist, $p, $q) # 526.684 ns (3 allocations: 448 bytes)
+p = CartesianIndex(4, 4)
+q = CartesianIndex(5, 5)
+# @btime getindex($patchwise_dist, $p, $q) # 7.946 ns (0 allocations: 0 bytes)
+# @btime sqeuclidean($(img[p-rₚ:p+rₚ]), $(img[q-rₚ:q+rₚ])) # 19.858 ns (0 allocations: 0 bytes)
 patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])
+
+function patched_mean_cache(img, rₚ; num_patches=10)
+    out = fill(zero(eltype(img)), axes(img))
+
+    patchwise_dist = let rₚ=rₚ
+        PairwiseDistance(SqEuclidean(), img, img, LocalWindowCache(size(img))) do i
+            i-rₚ:i+rₚ
+        end;
+    end;
+
+    R = CartesianIndices(img)
+    R0 = first(R)+rₚ:last(R)-rₚ
+    for p in R0
+        dist = vec(patchwise_dist[p, R0])
+        matched_patches = R0[partialsortperm(dist, 1:num_patches)]
+        out[p] = mapreduce(q->img[q], +, matched_patches)/length(matched_patches)
+    end
+    out
+end
+
+# @btime patched_mean_cache($img, $rₚ);
+#  752.450 ms (26920 allocations: 214.15 MiB)
+# @btime patched_mean_lazy($img, $rₚ);
+#  532.812 ms (26916 allocations: 131.63 MiB)
+# @btime patched_mean($img, $rₚ);
+#  824.653 ms (23549 allocations: 130.86 MiB)
+patched_mean_cache(img, rₚ) == patched_mean(img, rₚ)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
