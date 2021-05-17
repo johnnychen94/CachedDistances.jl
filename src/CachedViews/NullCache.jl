@@ -1,6 +1,8 @@
 struct NullCache <:AbstractCacheStrategy end
-function make_cache(T, ::NullCache, axesA, axesB, args...)
-    axes = (axesA..., axesB...)
+function make_cache(T, ::NullCache, ax_list)
+    axes = reduce(ax_list; init=()) do x, y
+        (x..., y...)
+    end
     NullCacheArray{T, length(axes), typeof(axes)}(axes)
 end
 
