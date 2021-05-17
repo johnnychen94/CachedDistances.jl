@@ -9,10 +9,19 @@ Y = rand(1:10, 100, 3);
 dist = pairwise(Euclidean(), X, Y)
 
 lazy_dist = let X=X, Y=Y
-    T = result_type(Euclidean(), X, Y)
-    PairwiseDistance{T}(Euclidean(), axes(X, 2), axes(Y, 2)) do i, j
-        @views X[:, i...], Y[:, j...]
-    end
+
+    index_map = (
+        identity,
+        identity
+    )
+
+    getindex_op = (
+        (ax, i) -> view(X, :, i),
+        (ax, j) -> view(Y, :, j)
+    )
+
+    d = Euclidean()
+    PairwiseDistance(index_map, getindex_op, d, (axes(X, 2), axes(Y, 2)))
 end
 
 dist == lazy_dist
@@ -22,12 +31,14 @@ Y = rand(1:10, 100, 2);
 dist = colwise(Euclidean(), X, Y)
 
 lazy_dist = let X=X, Y=Y
-    T = result_type(Euclidean(), X, Y)
-    eval_op(i, j) = Euclidean()(view(X, :, i...), view(Y, :, j...))
-    PairwiseDistance{Float64}(eval_op, axes(X, 2), axes(Y, 2))
+    getindex_op = (
+        (ax, i) -> view(X, :, i),
+        (ax, j) -> view(Y, :, j)
+    )
+    PairwiseDistance(identity, getindex_op, Euclidean(), (axes(X, 2), axes(Y, 2)))
 end
 
-Diagonal(lazy_dist) == Diagonal(dist)
+diag(lazy_dist) == dist
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
