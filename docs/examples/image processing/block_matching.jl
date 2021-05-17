@@ -94,7 +94,7 @@ patched_mean(img, rₚ)
 # A [`PairwiseDistance`](@ref) is a lazy array that mimics the output of pairwise distance.
 
 eval_op(x, y) = abs2(x - y)
-pointwise_dist = PairwiseDistance(eval_op, img, img); # 1.982 ns (0 allocations: 0 bytes)
+pointwise_dist = PairwiseDistance(eval_op, (img, img)); # 1.982 ns (0 allocations: 0 bytes)
 
 ## pointwise_dist[I, J] is defined as f(img[I], img[J])
 pq1 = pointwise_dist[CartesianIndex(1, 1), CartesianIndex(2, 2)]
@@ -110,7 +110,7 @@ valid_R = first(R)+rₚ:last(R)-rₚ
 ## For simplicity, we didn't deal with boundary condition here, so it will error
 ## when we index with `patchwise_dist[1, 1, 1, 1]`.
 patchwise_dist = let rₚ = rₚ, img = img
-    PairwiseDistance(SqEuclidean(), img, img) do i
+    PairwiseDistance(SqEuclidean(), (img, img)) do i
         i-rₚ:i+rₚ
     end
 end; # 4.903 ns (0 allocations: 0 bytes)
@@ -126,7 +126,7 @@ patchwise_dist[p, q] == sqeuclidean(img[p-rₚ:p+rₚ], img[q-rₚ:q+rₚ])
 function patched_mean_lazy(img, rₚ; num_patches=10)
     out = fill(zero(eltype(img)), axes(img))
 
-    patchwise_dist = PairwiseDistance(SqEuclidean(), img, img) do i
+    patchwise_dist = PairwiseDistance(SqEuclidean(), (img, img)) do i
         i-rₚ:i+rₚ
     end
 
@@ -141,7 +141,7 @@ function patched_mean_lazy(img, rₚ; num_patches=10)
 end
 
 ## @btime patched_mean_lazy($img, $rₚ);
-##  532.812 ms (26916 allocations: 131.63 MiB)
+##  643.413 ms (37015 allocations: 131.99 MiB)
 ## @btime patched_mean($img, $rₚ);
 ##  824.653 ms (23549 allocations: 130.86 MiB)
 patched_mean_lazy(img, rₚ) == patched_mean(img, rₚ)
@@ -154,7 +154,7 @@ patched_mean_lazy(img, rₚ) == patched_mean(img, rₚ)
 # pair `(p, q)`.
 
 eval_op(x, y) = abs2(x - y)
-pointwise_dist = PairwiseDistance(eval_op, img, img, LocalWindowCache((7, 7))); # 32.575 μs (3 allocations: 980.12 KiB)
+pointwise_dist = PairwiseDistance(eval_op, (img, img), LocalWindowCache((7, 7))); # 32.575 μs (3 allocations: 980.12 KiB)
 
 pq1 = pointwise_dist[CartesianIndex(1, 1), CartesianIndex(2, 2)]
 pq2 = eval_op(img[CartesianIndex(1, 1)], img[CartesianIndex(2, 2)])
@@ -163,7 +163,7 @@ pq1 == pq2
 # Instead of caching the result of pixel distances, we choose to cache the result of patch distances:
 
 patchwise_dist = let img=img, rₚ=rₚ
-    PairwiseDistance(SqEuclidean(), img, img, LocalWindowCache(size(img))) do i
+    PairwiseDistance(SqEuclidean(), (img, img), LocalWindowCache(size(img))) do i
         i-rₚ:i+rₚ
     end;
 end;
@@ -182,7 +182,7 @@ function patched_mean_cache(img, rₚ; num_patches=10)
     out = fill(zero(eltype(img)), axes(img))
 
     patchwise_dist = let rₚ=rₚ
-        PairwiseDistance(SqEuclidean(), img, img, LocalWindowCache(size(img))) do i
+        PairwiseDistance(SqEuclidean(), (img, img), LocalWindowCache(size(img))) do i
             i-rₚ:i+rₚ
         end;
     end;

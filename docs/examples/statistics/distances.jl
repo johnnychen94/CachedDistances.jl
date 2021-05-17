@@ -1,14 +1,16 @@
 # ---
 # title: Row/Column-wise Distances
 # author: Johnny Chen
-# date: 2020-10-16
+# date: 2021-5-17
 # ---
-
-# !!! warning
-#     This demo is currently broken.
 
 # This example shows how `LazyDistances.PairwiseDistance` can be used to get a better
 # `Distances.pairwise` performance.
+#
+# !!! warning
+#     The benchmark result `@btime` is not generated automatically so it may be outdated.
+#     If so please file an issue/PR to update it.
+#
 
 using Distances, LazyDistances
 using LinearAlgebra
@@ -29,10 +31,27 @@ dist = pairwise(Euclidean(), X, Y)
 # you need to manually specify how data pair is constructed:
 
 lazy_dist = let X=X, Y=Y
-    T = result_type(Euclidean(), X, Y)
-    PairwiseDistance{T}(Euclidean(), axes(X, 2), axes(Y, 2)) do i, j
-        @views X[:, i...], Y[:, j...]
-    end
+    # defines:
+    #   ĩ := σ(i)
+    #   j̃ := σ(j)
+    # where `i` and `j` are `CartesianIndex`.
+    # We don't need to operate on index `i` and `j` here, so use `identity`.
+    index_map = (
+        identity,
+        identity
+    )
+    # defines:
+    #   p = A[ĩ] := @view X[:, ĩ]
+    #   q = B[j̃] := @view Y[:, j̃]
+    # Here the input A is axes(X, 2) and is not used.
+    getindex_op = (
+        (ax, i) -> view(X, :, i),
+        (ax, j) -> view(Y, :, j)
+    )
+    # defines:
+    #   out[i, j] := d(p, q)
+    d = Euclidean()
+    PairwiseDistance(index_map, getindex_op, d, (axes(X, 2), axes(Y, 2)))
 end
 
 #-
@@ -45,27 +64,33 @@ dist == lazy_dist
 #  1.706 ns (0 allocations: 0 bytes)
 #
 # julia> @btime getindex($lazy_dist, 2, 3)
-#  73.290 ns (0 allocations: 0 bytes)
+#  27.086 ns (0 allocations: 0 bytes)
 # ```
 #
 # To properly benchmark the performance, let's do some simple statistics, e.g, `sum`, over the
 # result.
 #
 # ```julia
-# julia> X = rand(1:10, 100, 200);
+# X = rand(1:10, 100, 200);
+# Y = rand(1:10, 100, 300);
 #
-# julia> Y = rand(1:10, 100, 300);
+# function naive_pairwise_sum(d, X, Y)
+#     return sum(pairwise(d, X, Y))
+# end
 #
-# julia> @btime sum(pairwise(Euclidean(), $X, $Y))
-#  4.615 ms (5 allocations: 473.23 KiB)
+# function lazy_pairwise_sum(d, X, Y)
+#     getindex_op = (
+#         (ax, i) -> view(X, :, i),
+#         (ax, j) -> view(Y, :, j)
+#     )
+#     dist = PairwiseDistance(identity, getindex_op, d, map(A->axes(A, 2), (X, Y)))
+#     sum(dist)
+# end
 #
-# julia> @btime let X=$X, Y=$Y
-#            T = result_type(Euclidean(), X, Y)
-#            PairwiseDistance{T}(Euclidean(), axes(X, 2), axes(Y, 2)) do i, j
-#                @views X[:, i...], Y[:, j...]
-#            end |> sum
-#        end
-#  4.109 ms (0 allocations: 0 bytes)
+# naive_pairwise_sum(Euclidean(), X, Y) ≈ lazy_pairwise_sum(Euclidean(), X, Y) # true
+#
+# @btime naive_pairwise_sum(Euclidean(), $X, $Y); # 4.513 ms (5 allocations: 473.23 KiB)
+# @btime lazy_pairwise_sum(Euclidean(), $X, $Y); # 2.265 ms (13 allocations: 352 bytes)
 # ```
 #
 # Great that we have successfully removed the memory allocation overhead and it does improve the
@@ -82,25 +107,40 @@ Y = rand(1:10, 100, 2);
 dist = colwise(Euclidean(), X, Y)
 
 lazy_dist = let X=X, Y=Y
-    T = result_type(Euclidean(), X, Y)
-    eval_op(i, j) = Euclidean()(view(X, :, i...), view(Y, :, j...))
-    PairwiseDistance{Float64}(eval_op, axes(X, 2), axes(Y, 2))
+    getindex_op = (
+        (ax, i) -> view(X, :, i),
+        (ax, j) -> view(Y, :, j)
+    )
+    PairwiseDistance(identity, getindex_op, Euclidean(), (axes(X, 2), axes(Y, 2)))
 end
 
-Diagonal(lazy_dist) == Diagonal(dist)
+diag(lazy_dist) == dist
 
-# ```julia
-# julia> X = rand(1:10, 100, 200);
-# 
-# julia> Y = rand(1:10, 100, 200);
-# 
-# julia> @btime sum(colwise(Euclidean(), $X, $Y))
-#   14.513 μs (1 allocation: 1.77 KiB)
+# Let's also benchmark the results:
 #
-# julia> @btime let X=$X, Y=$Y
-#            T = result_type(Euclidean(), X, Y)
-#            eval_op(i, j) = Euclidean()(view(X, :, i...), view(Y, :, j...))
-#            PairwiseDistance{T}(eval_op, axes(X, 2), axes(Y, 2)) |> Diagonal |> sum
-#        end
-#   15.207 μs (1 allocation: 1.77 KiB)
+# ```julia
+# X = rand(1:10, 100, 200);
+# Y = rand(1:10, 100, 200);
+#
+# function naive_colwise_sum(d, X, Y)
+#     return sum(colwise(d, X, Y))
+# end
+#
+# function lazy_colwise_sum(d, X, Y)
+#     getindex_op = (
+#         (ax, i) -> view(X, :, i),
+#         (ax, j) -> view(Y, :, j)
+#     )
+#     dist = PairwiseDistance(identity, getindex_op, d, map(A->axes(A, 2), (X, Y)))
+#     sum(diag(dist))
+# end
+#
+# naive_colwise_sum(Euclidean(), X, Y) ≈ lazy_colwise_sum(Euclidean(), X, Y) # true
+#
+# @btime naive_colwise_sum(Euclidean(), $X, $Y); # 6.002 μs (1 allocation: 1.77 KiB)
+# @btime lazy_colwise_sum(Euclidean(), $X, $Y); # 8.166 μs (14 allocations: 2.11 KiB)
 # ```
+#
+# As you can see, this time our lazy version becomes slower than the colwise version. This is
+# because the `diag` operation itself gives some overhead. `PairwiseDistance` itself also
+# contributes some of the overhead.
