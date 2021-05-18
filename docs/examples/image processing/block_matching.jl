@@ -133,7 +133,9 @@ function patched_mean_lazy(img, rₚ; num_patches=10)
     R = CartesianIndices(img)
     R0 = first(R)+rₚ:last(R)-rₚ
     for p in R0
+        ## this takes about 77% of the execution time
         dist = vec(patchwise_dist[p, R0])
+        ## this takes about the remaining 13%
         matched_patches = R0[partialsortperm(dist, 1:num_patches)]
         out[p] = mapreduce(q->img[q], +, matched_patches)/length(matched_patches)
     end
@@ -182,15 +184,20 @@ function patched_mean_cache(img, rₚ; num_patches=10)
     out = fill(zero(eltype(img)), axes(img))
 
     patchwise_dist = let rₚ=rₚ
-        PairwiseDistance(SqEuclidean(), (img, img), LocalWindowCache(size(img))) do i
+        PairwiseDistance(SqEuclidean(), (img, img), LocalWindowCache(2 .* size(img))) do i
             i-rₚ:i+rₚ
         end;
     end;
 
+    ## This takes about 47% of the time
+    patchwise_dist = LazyDistances.precalculate(patchwise_dist);
+
     R = CartesianIndices(img)
     R0 = first(R)+rₚ:last(R)-rₚ
     for p in R0
-        dist = vec(patchwise_dist[p, R0])
+        ## This takes the other 48%
+        dist = vec(LazyDistances.get_patch(patchwise_dist, p, R0))
+        ## This takes about 5% of the time
         matched_patches = R0[partialsortperm(dist, 1:num_patches)]
         out[p] = mapreduce(q->img[q], +, matched_patches)/length(matched_patches)
     end
@@ -198,11 +205,11 @@ function patched_mean_cache(img, rₚ; num_patches=10)
 end
 
 ## @btime patched_mean_cache($img, $rₚ);
-##  752.450 ms (26920 allocations: 214.15 MiB)
+##  730.693 ms (33661 allocations: 716.92 MiB)
 ## @btime patched_mean_lazy($img, $rₚ);
-##  532.812 ms (26916 allocations: 131.63 MiB)
+##  626.310 ms (37015 allocations: 131.99 MiB)
 ## @btime patched_mean($img, $rₚ);
-##  824.653 ms (23549 allocations: 130.86 MiB)
+##  889.283 ms (30277 allocations: 131.11 MiB)
 patched_mean_cache(img, rₚ) == patched_mean(img, rₚ)
 
 # Oops! It's worse than our non-cache version. TODO: "fix" it

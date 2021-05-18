@@ -18,5 +18,6 @@ result_type(dist::Distances.PreMetric, a, b) = Distances.result_type(dist, a, b)
 
 include("utilities.jl")
 include("pairwise.jl")
+include("precached_pairwise.jl")
 
 end #module

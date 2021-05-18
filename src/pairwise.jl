@@ -200,6 +200,8 @@ function Base.showarg(io::IO, ::PairwiseDistance{T, N}, toplevel) where {T, N}
     print(io, "PairwiseDistance{", T, ", ", N, "}")
 end
 
+cache_type(d::PairwiseDistance{T, N, NA, CA}) where {T, N, NA, CA} = CA
+
 # This unifies the way to index `A[ĩ]` (so that we never need to explicitly call `A[ĩ...]`)
 @inline _to_indices(inds::Tuple) = CartesianIndices(inds)
 @inline _to_indices(inds::Dims) = CartesianIndex(inds)
