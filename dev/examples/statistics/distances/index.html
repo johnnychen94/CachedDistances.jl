@@ -5,13 +5,27 @@ using Random
 Random.seed!(0)</code></pre><h2 id="pairwise-distance"><a class="docs-heading-anchor" href="#pairwise-distance">pairwise distance</a><a id="pairwise-distance-1"></a><a class="docs-heading-anchor-permalink" href="#pairwise-distance" title="Permalink"></a></h2><pre><code class="language-">X = rand(1:10, 100, 2);
 Y = rand(1:10, 100, 3);
 
-dist = pairwise(Euclidean(), X, Y)</code></pre><p><code>Distances.pairwise</code> explicitly generates a large array, which does not perform well for massive scale data. <a href="../../../references/#LazyDistances.PairwiseDistance"><code>PairwiseDistance</code></a> mimics the pairwise operation in a lazy and optionally cached manner, so that you don&#39;t need to worry about memory allocation and the overhead due to GC. Unlike <code>pairwise</code>, <code>PairwiseDistance</code> does not assume the data to be row or column shaped; instead you need to manually specify how data pair is constructed:</p><pre><code class="language-">lazy_dist = let X=X, Y=Y</code></pre><p>defines:   ĩ := σ(i)   j̃ := σ(j) where <code>i</code> and <code>j</code> are <code>CartesianIndex</code>. We don&#39;t need to operate on index <code>i</code> and <code>j</code> here, so use <code>identity</code>.</p><pre><code class="language-julia">    index_map = (
+dist = pairwise(Euclidean(), X, Y)</code></pre><p><code>Distances.pairwise</code> explicitly generates a large array, which does not perform well for massive scale data. <a href="../../../references/#LazyDistances.PairwiseDistance"><code>PairwiseDistance</code></a> mimics the pairwise operation in a lazy and optionally cached manner, so that you don&#39;t need to worry about memory allocation and the overhead due to GC. Unlike <code>pairwise</code>, <code>PairwiseDistance</code> does not assume the data to be row or column shaped; instead you need to manually specify how data pair is constructed:</p><pre><code class="language-">lazy_dist = let X=X, Y=Y
+    # defines:
+    #   ĩ := σ(i)
+    #   j̃ := σ(j)
+    # where `i` and `j` are `CartesianIndex`.
+    # We don&#39;t need to operate on index `i` and `j` here, so use `identity`.
+    index_map = (
         identity,
         identity
-    )</code></pre><pre class="documenter-example-output">(identity, identity)</pre><p>defines:   p = A[ĩ] := @view X[:, ĩ]   q = B[j̃] := @view Y[:, j̃] Here the input A is axes(X, 2) and is not used.</p><pre><code class="language-julia">    getindex_op = (
+    )
+    # defines:
+    #   p = A[ĩ] := @view X[:, ĩ]
+    #   q = B[j̃] := @view Y[:, j̃]
+    # Here the input A is axes(X, 2) and is not used.
+    getindex_op = (
         (ax, i) -&gt; view(X, :, i),
         (ax, j) -&gt; view(Y, :, j)
-    )</code></pre><pre class="documenter-example-output">(Main.ex-distances.var&quot;#1#3&quot;(), Main.ex-distances.var&quot;#2#4&quot;())</pre><p>defines:   out[i, j] := d(p, q)</p><pre><code class="language-">    d = Euclidean()
+    )
+    # defines:
+    #   out[i, j] := d(p, q)
+    d = Euclidean()
     PairwiseDistance(index_map, getindex_op, d, (axes(X, 2), axes(Y, 2)))
 end</code></pre><pre><code class="language-">dist == lazy_dist</code></pre><p>The actual computation is not done until we retrieve the result:</p><pre><code class="language-julia">julia&gt; @btime getindex($dist, 2, 3);
  1.706 ns (0 allocations: 0 bytes)
@@ -67,4 +81,4 @@ end
 naive_colwise_sum(Euclidean(), X, Y) ≈ lazy_colwise_sum(Euclidean(), X, Y) # true
 
 @btime naive_colwise_sum(Euclidean(), $X, $Y); # 6.002 μs (1 allocation: 1.77 KiB)
-@btime lazy_colwise_sum(Euclidean(), $X, $Y); # 8.166 μs (14 allocations: 2.11 KiB)</code></pre><p>As you can see, this time our lazy version becomes slower than the colwise version. This is because the <code>diag</code> operation itself gives some overhead. <code>PairwiseDistance</code> itself also contributes some of the overhead.</p><hr/><p><em>This page was generated using <a href="https://github.com/johnnychen94/DemoCards.jl">DemoCards.jl</a> and <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../image processing/block_matching/">« Block matching</a><a class="docs-footer-nextpage" href="../../../references/">Function References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 17 May 2021 14:58">Monday 17 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+@btime lazy_colwise_sum(Euclidean(), $X, $Y); # 8.166 μs (14 allocations: 2.11 KiB)</code></pre><p>As you can see, this time our lazy version becomes slower than the colwise version. This is because the <code>diag</code> operation itself gives some overhead. <code>PairwiseDistance</code> itself also contributes some of the overhead.</p><hr/><p><em>This page was generated using <a href="https://github.com/johnnychen94/DemoCards.jl">DemoCards.jl</a> and <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../image processing/block_matching/">« Block matching</a><a class="docs-footer-nextpage" href="../../../references/">Function References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 18 May 2021 07:43">Tuesday 18 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
