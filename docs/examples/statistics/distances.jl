@@ -31,25 +31,25 @@ dist = pairwise(Euclidean(), X, Y)
 # you need to manually specify how data pair is constructed:
 
 lazy_dist = let X=X, Y=Y
-    # defines:
-    #   ĩ := σ(i)
-    #   j̃ := σ(j)
-    # where `i` and `j` are `CartesianIndex`.
-    # We don't need to operate on index `i` and `j` here, so use `identity`.
+    ## defines:
+    ##   ĩ := σ(i)
+    ##   j̃ := σ(j)
+    ## where `i` and `j` are `CartesianIndex`.
+    ## We don't need to operate on index `i` and `j` here, so use `identity`.
     index_map = (
         identity,
         identity
     )
-    # defines:
-    #   p = A[ĩ] := @view X[:, ĩ]
-    #   q = B[j̃] := @view Y[:, j̃]
-    # Here the input A is axes(X, 2) and is not used.
+    ## defines:
+    ##   p = A[ĩ] := @view X[:, ĩ]
+    ##   q = B[j̃] := @view Y[:, j̃]
+    ## Here the input A is axes(X, 2) and is not used.
     getindex_op = (
         (ax, i) -> view(X, :, i),
         (ax, j) -> view(Y, :, j)
     )
-    # defines:
-    #   out[i, j] := d(p, q)
+    ## defines:
+    ##   out[i, j] := d(p, q)
     d = Euclidean()
     PairwiseDistance(index_map, getindex_op, d, (axes(X, 2), axes(Y, 2)))
 end
